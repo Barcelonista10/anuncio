@@ -1,0 +1,65 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <title>Anuncio</title>
+  <script src="https://cdn.jsdelivr.net/npm/unity-ads-web-sdk@3.0.0/dist/unity-ads-web.min.js"></script>
+  <style>
+    body {
+      margin: 0;
+      padding: 0;
+      background-color: #000;
+      color: #fff;
+      font-family: Arial, sans-serif;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      height: 100vh;
+      text-align: center;
+    }
+    #skip-btn {
+      margin-top: 20px;
+      padding: 10px 20px;
+      font-size: 16px;
+      background: #ffffff11;
+      color: #fff;
+      border: 1px solid #fff;
+      border-radius: 8px;
+      cursor: pointer;
+      display: none;
+    }
+  </style>
+</head>
+<body>
+
+  <h2>Mostrando anuncio...</h2>
+  <p>Por favor espera unos segundos.</p>
+  <button id="skip-btn" onclick="skipAd()">Saltar anuncio</button>
+
+  <script>
+    const gameId = "5890858"; // Tu ID de Unity
+    const adUnitId = "Interstitial_Android"; // Cambia a "Rewarded_Android" si deseas recompensa
+    const redirectURL = "https://tupagina.com/contenido.html"; // URL a redirigir tras el anuncio
+
+    // Mostrar botón de salto después de 8 segundos
+    setTimeout(() => {
+      document.getElementById('skip-btn').style.display = 'inline-block';
+    }, 8000);
+
+    function skipAd() {
+      window.location.href = redirectURL;
+    }
+
+    UnityAds.init(gameId, true).then(() => {
+      return UnityAds.showAd(adUnitId);
+    }).then(() => {
+      window.location.href = redirectURL;
+    }).catch((e) => {
+      console.warn("Error mostrando anuncio:", e);
+      window.location.href = redirectURL;
+    });
+  </script>
+
+</body>
+</html>
