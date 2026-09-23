@@ -1,3 +1,4 @@
+```html
 <!DOCTYPE html>
 <html lang="es" class="dark">
 <head>
@@ -55,7 +56,7 @@
 </head>
 <body class="bg-slate-950 text-slate-100 font-sans min-h-screen flex flex-col justify-between selection:bg-blue-600 selection:text-white pb-20">
 
-    <!-- Header Principal -->
+    <!-- Header Principal (100% Limpio sin botones de Admin) -->
     <header class="sticky top-0 z-30 bg-slate-900/90 backdrop-blur-custom border-b border-slate-800 px-4 py-3 shadow-lg">
         <div class="max-w-4xl mx-auto flex items-center justify-between">
             <div class="flex items-center gap-3">
@@ -66,19 +67,12 @@
                 <div>
                     <h1 class="font-bold text-base tracking-wide flex items-center gap-2">
                         CineFlix
-                        <span id="admin-badge" class="hidden bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 text-[10px] px-2 py-0.5 rounded-full font-semibold">Modo Admin</span>
                     </h1>
                     <p class="text-xs text-slate-400 flex items-center gap-1" id="tg-user-greeting">
                         <i class="fa-solid fa-user-circle text-slate-500"></i> Cargando usuario...
                     </p>
                 </div>
             </div>
-
-            <!-- Secret Admin Button (Visible only when unlocked or clicked via logo) -->
-            <button id="admin-panel-btn" onclick="openAdminModal()" class="hidden items-center gap-1.5 bg-slate-800 hover:bg-slate-700 border border-slate-700 text-slate-200 px-3 py-1.5 rounded-lg text-xs font-medium active:scale-95 transition-all">
-                <i class="fa-solid fa-user-gear text-blue-400"></i>
-                <span>Panel Admin</span>
-            </button>
         </div>
     </header>
 
@@ -206,6 +200,18 @@
                                   class="w-full bg-slate-950 border border-slate-800 rounded-xl px-3.5 py-2.5 text-xs font-mono text-slate-100 focus:outline-none focus:border-emerald-500"></textarea>
                     </div>
 
+                    <!-- Cloud Sync via JSONBin for Global Persistence -->
+                    <div class="border-t border-slate-800 pt-3 space-y-2">
+                        <label class="block text-xs font-semibold text-emerald-400">
+                            <i class="fa-solid fa-cloud mr-1"></i> Sincronización Global en la Nube (Opcional - JSONBin.io)
+                        </label>
+                        <p class="text-[11px] text-slate-400">Permite sincronizar películas en tiempo real con todos tus usuarios:</p>
+                        <input type="text" id="jsonbin-bin-id" placeholder="Bin ID (Ej. 65f12345a678...)" 
+                               class="w-full bg-slate-950 border border-slate-800 rounded-xl px-3.5 py-2 text-xs text-slate-100 focus:outline-none focus:border-emerald-500">
+                        <input type="password" id="jsonbin-api-key" placeholder="Master Key de JSONBin" 
+                               class="w-full bg-slate-950 border border-slate-800 rounded-xl px-3.5 py-2 text-xs text-slate-100 focus:outline-none focus:border-emerald-500">
+                    </div>
+
                     <div>
                         <label class="block text-xs font-semibold text-slate-300 mb-1">
                             Cambiar PIN de Acceso Admin
@@ -255,7 +261,7 @@
                     </div>
 
                     <div>
-                        <label class="block text-xs font-semibold text-slate-300 mb-1">URL de Reproducción (MP4 / Embed Embed) *</label>
+                        <label class="block text-xs font-semibold text-slate-300 mb-1">URL de Reproducción (MP4 / Embed) *</label>
                         <input type="url" id="movie-stream-url" required placeholder="https://ejemplo.com/embed/pelicula o archivo .mp4" 
                                class="w-full bg-slate-950 border border-slate-800 rounded-xl px-3.5 py-2.5 text-sm text-slate-100 focus:outline-none focus:border-blue-500">
                     </div>
@@ -275,6 +281,12 @@
 
             <!-- ADMIN TAB 3: MANAGE / DELETE MOVIES -->
             <div id="admin-sec-manage" class="hidden space-y-3">
+                <div class="flex justify-between items-center mb-2">
+                    <span class="text-xs text-slate-400">Películas en el catálogo</span>
+                    <button onclick="copyGithubCode()" class="bg-blue-600/20 hover:bg-blue-600 text-blue-400 hover:text-white border border-blue-500/30 text-[11px] font-semibold px-2.5 py-1 rounded-lg transition-all flex items-center gap-1">
+                        <i class="fa-solid fa-code"></i> Copiar Código para GitHub
+                    </button>
+                </div>
                 <div id="admin-movies-list" class="space-y-2 max-h-80 overflow-y-auto pr-1">
                     <!-- Dynamic movie list with delete buttons -->
                 </div>
@@ -353,7 +365,7 @@
     <!-- Custom Toast Notification System -->
     <div id="toast-container" class="fixed top-16 right-4 z-50 space-y-2 pointer-events-none"></div>
 
-    <!-- Bottom Navigation Bar for Mobile (Cleaned for Regular Users) -->
+    <!-- Bottom Navigation Bar for Mobile -->
     <nav class="fixed bottom-0 inset-x-0 z-30 bg-slate-900/95 backdrop-blur-custom border-t border-slate-800 px-6 py-2">
         <div class="max-w-md mx-auto flex items-center justify-around">
             <button onclick="switchTab('catalog')" id="nav-catalog" class="nav-btn active flex flex-col items-center gap-1 text-blue-500 transition-colors">
@@ -404,11 +416,14 @@
 
         let monetagConfig = {
             directUrl: localStorage.getItem('monetag_direct_url') || 'https://ototwo.com/4/8888888',
-            scriptCode: localStorage.getItem('monetag_script') || ''
+            scriptCode: localStorage.getItem('monetag_script') || '',
+            jsonbinBinId: localStorage.getItem('jsonbin_bin_id') || '',
+            jsonbinApiKey: localStorage.getItem('jsonbin_api_key') || ''
         };
 
         window.addEventListener('DOMContentLoaded', () => {
             initTelegramApp();
+            checkSharedMovieInUrl();
             loadMovies();
             loadMonetagConfig();
         });
@@ -420,13 +435,170 @@
                 tg.expand();
 
                 const user = tg.initDataUnsafe?.user;
-                const greetingEl = document.getElementById('tg-user-greeting');
                 if (user) {
-                    greetingEl.innerHTML = `<i class="fa-solid fa-circle-user text-blue-400"></i> Hola, <strong>${user.first_name || user.username}</strong>`;
-                } else {
-                    greetingEl.innerHTML = `<i class="fa-solid fa-film text-blue-400"></i> Catálogo de Cine`;
+                    const greetingEl = document.getElementById('tg-user-greeting');
+                    if (greetingEl) {
+                        greetingEl.innerHTML = `<i class="fa-solid fa-user-circle text-blue-400"></i> ${user.first_name || 'Usuario'}`;
+                    }
                 }
             }
+        }
+
+        function checkSharedMovieInUrl() {
+            try {
+                const urlParams = new URLSearchParams(window.location.search);
+                const sharedData = urlParams.get('mdata');
+                if (sharedData) {
+                    const decoded = JSON.parse(decodeURIComponent(atob(sharedData)));
+                    if (decoded && decoded.id && decoded.title) {
+                        let saved = localStorage.getItem('cine_telegram_movies');
+                        let currentMovies = saved ? JSON.parse(saved) : [...DEFAULT_MOVIES];
+                        if (!currentMovies.some(m => m.id === decoded.id)) {
+                            currentMovies.unshift(decoded);
+                            localStorage.setItem('cine_telegram_movies', JSON.stringify(currentMovies));
+                        }
+                    }
+                }
+            } catch (e) {
+                console.log('Error parsing shared movie', e);
+            }
+        }
+
+        async function loadMovies() {
+            const saved = localStorage.getItem('cine_telegram_movies');
+            if (saved) {
+                try { movies = JSON.parse(saved); } catch (e) { movies = [...DEFAULT_MOVIES]; }
+            } else {
+                movies = [...DEFAULT_MOVIES];
+            }
+
+            // If JSONBin is configured, fetch latest list from Cloud
+            if (monetagConfig.jsonbinBinId && monetagConfig.jsonbinApiKey) {
+                try {
+                    const res = await fetch(`https://api.jsonbin.io/v3/b/${monetagConfig.jsonbinBinId}/latest`, {
+                        headers: { 'X-Master-Key': monetagConfig.jsonbinApiKey }
+                    });
+                    if (res.ok) {
+                        const data = await res.json();
+                        if (data.record && Array.isArray(data.record)) {
+                            movies = data.record;
+                            localStorage.setItem('cine_telegram_movies', JSON.stringify(movies));
+                        }
+                    }
+                } catch (err) {
+                    console.log('Cloud sync fetch fallback to local storage');
+                }
+            }
+
+            renderMoviesGrid(movies);
+        }
+
+        async function saveMoviesState() {
+            localStorage.setItem('cine_telegram_movies', JSON.stringify(movies));
+
+            // Sync with JSONBin if configured
+            if (monetagConfig.jsonbinBinId && monetagConfig.jsonbinApiKey) {
+                try {
+                    await fetch(`https://api.jsonbin.io/v3/b/${monetagConfig.jsonbinBinId}`, {
+                        method: 'PUT',
+                        headers: {
+                            'Content-Type': 'application/json',
+                            'X-Master-Key': monetagConfig.jsonbinApiKey
+                        },
+                        body: JSON.stringify(movies)
+                    });
+                } catch (err) {
+                    console.log('Cloud sync error', err);
+                }
+            }
+        }
+
+        function handleAddMovie(e) {
+            e.preventDefault();
+            triggerHaptic('medium');
+
+            const title = document.getElementById('movie-title').value.trim();
+            const category = document.getElementById('movie-category').value;
+            const quality = document.getElementById('movie-quality').value.trim() || 'HD';
+            const poster = document.getElementById('movie-poster').value.trim();
+            const streamUrl = document.getElementById('movie-stream-url').value.trim();
+            const desc = document.getElementById('movie-desc').value.trim();
+
+            const newMovie = {
+                id: 'm_' + Date.now(),
+                title,
+                category,
+                quality,
+                poster,
+                streamUrl,
+                desc: desc || 'Película del catálogo'
+            };
+
+            movies.unshift(newMovie);
+            saveMoviesState();
+
+            showToast('Película agregada con éxito', 'success');
+            document.getElementById('add-movie-form').reset();
+            renderMoviesGrid(movies);
+            switchAdminTab('manage');
+        }
+
+        function deleteMovie(id) {
+            movies = movies.filter(m => m.id !== id);
+            saveMoviesState();
+            renderMoviesGrid(movies);
+            renderAdminManageList();
+            showToast('Película eliminada', 'info');
+        }
+
+        function copyGithubCode() {
+            const formattedCode = `const DEFAULT_MOVIES = ${JSON.stringify(movies, null, 4)};`;
+            navigator.clipboard.writeText(formattedCode).then(() => {
+                showToast('Código copiado. Pégalo en tu index.html de GitHub', 'success');
+            }).catch(() => {
+                showToast('No se pudo copiar el código', 'warning');
+            });
+        }
+
+        function loadMonetagConfig() {
+            document.getElementById('monetag-direct-url').value = monetagConfig.directUrl;
+            document.getElementById('monetag-script-code').value = monetagConfig.scriptCode;
+            document.getElementById('jsonbin-bin-id').value = monetagConfig.jsonbinBinId;
+            document.getElementById('jsonbin-api-key').value = monetagConfig.jsonbinApiKey;
+
+            if (monetagConfig.scriptCode) {
+                const slot = document.getElementById('monetag-inpage-slot');
+                slot.innerHTML = monetagConfig.scriptCode;
+                slot.classList.remove('hidden');
+            }
+        }
+
+        function saveMonetagSettings(e) {
+            e.preventDefault();
+            triggerHaptic('medium');
+
+            monetagConfig.directUrl = document.getElementById('monetag-direct-url').value.trim();
+            monetagConfig.scriptCode = document.getElementById('monetag-script-code').value.trim();
+            monetagConfig.jsonbinBinId = document.getElementById('jsonbin-bin-id').value.trim();
+            monetagConfig.jsonbinApiKey = document.getElementById('jsonbin-api-key').value.trim();
+
+            const newPin = document.getElementById('change-admin-pin').value.trim();
+            if (newPin && newPin.length >= 4) {
+                adminPin = newPin;
+                localStorage.setItem('cine_admin_pin', newPin);
+                document.getElementById('change-admin-pin').value = '';
+                showToast('PIN de Admin actualizado', 'success');
+            }
+
+            localStorage.setItem('monetag_direct_url', monetagConfig.directUrl);
+            localStorage.setItem('monetag_script', monetagConfig.scriptCode);
+            localStorage.setItem('jsonbin_bin_id', monetagConfig.jsonbinBinId);
+            localStorage.setItem('jsonbin_api_key', monetagConfig.jsonbinApiKey);
+
+            loadMonetagConfig();
+            loadMovies();
+            showToast('Ajustes guardados correctamente', 'success');
+            closeAdminDashboardModal();
         }
 
         function triggerHaptic(style = 'light') {
@@ -468,18 +640,10 @@
                 isAdminUnlocked = true;
                 closeAdminLoginModal();
                 showToast('Acceso Admin Concedido', 'success');
-                document.getElementById('admin-badge').classList.remove('hidden');
-                document.getElementById('admin-panel-btn').classList.remove('hidden');
-                document.getElementById('admin-panel-btn').classList.add('flex');
                 openAdminDashboardModal();
             } else {
                 showToast('PIN Incorrecto', 'warning');
             }
-        }
-
-        function openAdminModal() {
-            if (isAdminUnlocked) openAdminDashboardModal();
-            else openAdminLoginModal();
         }
 
         function openAdminDashboardModal() {
@@ -513,17 +677,6 @@
                 document.getElementById('admin-tab-btn-manage').className = "pb-2 border-b-2 border-amber-500 text-amber-400";
                 renderAdminManageList();
             }
-        }
-
-        function loadMovies() {
-            const saved = localStorage.getItem('cine_telegram_movies');
-            if (saved) {
-                try { movies = JSON.parse(saved); } catch (e) { movies = [...DEFAULT_MOVIES]; }
-            } else {
-                movies = [...DEFAULT_MOVIES];
-                localStorage.setItem('cine_telegram_movies', JSON.stringify(movies));
-            }
-            renderMoviesGrid(movies);
         }
 
         function renderMoviesGrid(items) {
@@ -590,36 +743,6 @@
             filterMovies();
         }
 
-        function handleAddMovie(e) {
-            e.preventDefault();
-            triggerHaptic('medium');
-
-            const title = document.getElementById('movie-title').value.trim();
-            const category = document.getElementById('movie-category').value;
-            const quality = document.getElementById('movie-quality').value.trim() || 'HD';
-            const poster = document.getElementById('movie-poster').value.trim();
-            const streamUrl = document.getElementById('movie-stream-url').value.trim();
-            const desc = document.getElementById('movie-desc').value.trim();
-
-            const newMovie = {
-                id: 'm_' + Date.now(),
-                title,
-                category,
-                quality,
-                poster,
-                streamUrl,
-                desc: desc || 'Película del catálogo'
-            };
-
-            movies.unshift(newMovie);
-            localStorage.setItem('cine_telegram_movies', JSON.stringify(movies));
-
-            showToast('Película agregada con éxito', 'success');
-            document.getElementById('add-movie-form').reset();
-            renderMoviesGrid(movies);
-            switchAdminTab('manage');
-        }
-
         function renderAdminManageList() {
             const container = document.getElementById('admin-movies-list');
             if (movies.length === 0) {
@@ -641,48 +764,6 @@
                     </button>
                 </div>
             `).join('');
-        }
-
-        function deleteMovie(id) {
-            movies = movies.filter(m => m.id !== id);
-            localStorage.setItem('cine_telegram_movies', JSON.stringify(movies));
-            renderMoviesGrid(movies);
-            renderAdminManageList();
-            showToast('Película eliminada', 'info');
-        }
-
-        function loadMonetagConfig() {
-            document.getElementById('monetag-direct-url').value = monetagConfig.directUrl;
-            document.getElementById('monetag-script-code').value = monetagConfig.scriptCode;
-
-            if (monetagConfig.scriptCode) {
-                const slot = document.getElementById('monetag-inpage-slot');
-                slot.innerHTML = monetagConfig.scriptCode;
-                slot.classList.remove('hidden');
-            }
-        }
-
-        function saveMonetagSettings(e) {
-            e.preventDefault();
-            triggerHaptic('medium');
-
-            monetagConfig.directUrl = document.getElementById('monetag-direct-url').value.trim();
-            monetagConfig.scriptCode = document.getElementById('monetag-script-code').value.trim();
-
-            const newPin = document.getElementById('change-admin-pin').value.trim();
-            if (newPin && newPin.length >= 4) {
-                adminPin = newPin;
-                localStorage.setItem('cine_admin_pin', newPin);
-                document.getElementById('change-admin-pin').value = '';
-                showToast('PIN de Admin actualizado', 'success');
-            }
-
-            localStorage.setItem('monetag_direct_url', monetagConfig.directUrl);
-            localStorage.setItem('monetag_script', monetagConfig.scriptCode);
-
-            loadMonetagConfig();
-            showToast('Ajustes de Monetag guardados', 'success');
-            closeAdminDashboardModal();
         }
 
         function requestMoviePlay(movieId) {
@@ -773,12 +854,17 @@
 
         function shareMovieTelegram() {
             triggerHaptic('light');
-            if (window.Telegram && window.Telegram.WebApp) {
-                const tg = window.Telegram.WebApp;
-                const shareText = `¡Mira esta película en CineFlix MiniApp!`;
-                tg.openTelegramLink(`https://t.me/share/url?url=${encodeURIComponent(window.location.href)}&text=${encodeURIComponent(shareText)}`);
-            } else {
-                showToast('Enlace de compartir preparado', 'info');
+            if (pendingMovieToPlay) {
+                const encodedData = btoa(encodeURIComponent(JSON.stringify(pendingMovieToPlay)));
+                const shareUrl = `${window.location.origin}${window.location.pathname}?mdata=${encodedData}`;
+                const shareText = `¡Mira "${pendingMovieToPlay.title}" en CineFlix!`;
+
+                if (window.Telegram && window.Telegram.WebApp) {
+                    window.Telegram.WebApp.openTelegramLink(`https://t.me/share/url?url=${encodeURIComponent(shareUrl)}&text=${encodeURIComponent(shareText)}`);
+                } else {
+                    navigator.clipboard.writeText(`${shareText}\n${shareUrl}`);
+                    showToast('Enlace copiado al portapapeles', 'info');
+                }
             }
         }
 
@@ -831,3 +917,4 @@
     </script>
 </body>
 </html>
+```
